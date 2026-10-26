@@ -1,0 +1,17 @@
+﻿{
+  "gestures": [
+    { "name": "C Shape (Curved Hand)", "phrase": "Food / Hungry", "fingers": 0, "orient_min": 0,   "orient_max": 180, "solidity_min": 0.45, "solidity_max": 0.78, "aspect_min": 0.7, "aspect_max": 1.6,  "custom": false },
+    { "name": "Compact Fist",          "phrase": "Stop / No",     "fingers": 0, "orient_min": 0,   "orient_max": 180, "solidity_min": 0.80, "solidity_max": 1.01, "aspect_min": 0.6, "aspect_max": 1.6,  "custom": false },
+    { "name": "Index Up",              "phrase": "I need help",   "fingers": 1, "orient_min": 65,  "orient_max": 115, "solidity_min": 0.0,  "solidity_max": 1.01, "aspect_min": 1.4, "aspect_max": 10,   "custom": false },
+    { "name": "Thumb Side",            "phrase": "Yes / I agree", "fingers": 1, "orient_min": 160, "orient_max": 20,  "solidity_min": 0.0,  "solidity_max": 1.01, "aspect_min": 0,   "aspect_max": 1.35, "custom": false },
+    { "name": "Wide L Shape",          "phrase": "Water, please", "fingers": 2, "orient_min": 20,  "orient_max": 160, "solidity_min": 0.0,  "solidity_max": 0.80, "aspect_min": 0.7, "aspect_max": 1.45, "custom": false },
+    { "name": "Narrow V",              "phrase": "Peace / Hello", "fingers": 2, "orient_min": 65,  "orient_max": 115, "solidity_min": 0.80, "solidity_max": 1.01, "aspect_min": 1.2, "aspect_max": 10,   "custom": false },
+    { "name": "V Horizontal",          "phrase": "Victory / Goodbye", "fingers": 2, "orient_min": 160, "orient_max": 20, "solidity_min": 0.80, "solidity_max": 1.01, "aspect_min": 0, "aspect_max": 1.2, "custom": false },
+    { "name": "Three Fingers Up",      "phrase": "Thank you",     "fingers": 3, "orient_min": 65,  "orient_max": 115, "solidity_min": 0.0,  "solidity_max": 1.01, "aspect_min": 0,   "aspect_max": 10,   "custom": false },
+    { "name": "Three Fingers Side",    "phrase": "Where / Question", "fingers": 3, "orient_min": 160, "orient_max": 20, "solidity_min": 0.0, "solidity_max": 1.01, "aspect_min": 0,  "aspect_max": 10,   "custom": false },
+    { "name": "Four Fingers Up",       "phrase": "Excuse me",     "fingers": 4, "orient_min": 65,  "orient_max": 115, "solidity_min": 0.0,  "solidity_max": 1.01, "aspect_min": 0,   "aspect_max": 10,   "custom": false },
+    { "name": "Four Fingers Side",     "phrase": "Please / Sorry", "fingers": 4, "orient_min": 160, "orient_max": 20, "solidity_min": 0.0,  "solidity_max": 1.01, "aspect_min": 0,  "aspect_max": 10,   "custom": false },
+    { "name": "Open Vertical Palm",    "phrase": "Wait please",   "fingers": 5, "orient_min": 65,  "orient_max": 115, "solidity_min": 0.0,  "solidity_max": 1.01, "aspect_min": 0,   "aspect_max": 10,   "custom": false },
+    { "name": "Tilted Open Palm",      "phrase": "Good / Fine",   "fingers": 5, "orient_min": 160, "orient_max": 20,  "solidity_min": 0.0,  "solidity_max": 1.01, "aspect_min": 0,   "aspect_max": 10,   "custom": false }
+  ]
+}

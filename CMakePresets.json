@@ -1,0 +1,21 @@
+﻿{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "windows-default",
+      "displayName": "Windows MSVC Release (prebuilt OpenCV 4.11)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "OpenCV_DIR": "F:/opencv/opencv/build"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-default",
+      "configuration": "Release"
+    }
+  ]
+}

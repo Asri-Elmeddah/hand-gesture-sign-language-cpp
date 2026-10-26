@@ -1,0 +1,17 @@
+build/
+.vs/
+out/
+*.exe
+*.dll
+*.pdb
+*.lib
+*.ilk
+*.obj
+*.user
+.env
+session_transcript.txt
+telemetry_log.csv
+*.tmp
+*.log
+__pycache__/
+.ipynb_checkpoints/
