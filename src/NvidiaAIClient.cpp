@@ -79,7 +79,7 @@ void NvidiaAIClient::joinWorker() {
 
 bool NvidiaAIClient::configure(const std::string& apiKey, const std::string& model) {
     apiKey_ = apiKey;
-    model_ = model.empty() ? "meta/llama-3.1-8b-instruct" : model;
+    model_ = model.empty() ? "z-ai/glm-5.3" : model;
     configured_ = !apiKey_.empty() && apiKey_.rfind("PASTE_YOUR", 0) != 0;
     return configured_;
 }

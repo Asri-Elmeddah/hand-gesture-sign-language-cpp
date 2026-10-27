@@ -86,8 +86,12 @@ Secrets live **only** in the untracked `.env` file (see `.env.example`):
 GITHUB_PAT_TOKEN=<your fine-grained PAT with Contents: read+write>
 NVIDIA_API_KEY=<your key from build.nvidia.com>
 GITHUB_REPO_NAME=hand-gesture-sign-language-cpp
-NVIDIA_MODEL=meta/llama-3.1-8b-instruct
+NVIDIA_MODEL=z-ai/glm-5.3
 ```
+
+AI features call Nvidia NIM (`https://integrate.api.nvidia.com/v1/chat/completions`) with the
+**GLM** model (`z-ai/glm-5.3`; use `z-ai/glm-5.3-flash` for lower latency by changing
+`NVIDIA_MODEL` in `.env`).
 
 `.gitignore` excludes `.env`, `build/`, `.vs/`, `*.exe`, `*.dll`, transcripts and CSVs, so secret
 scanning never blocks the push.
