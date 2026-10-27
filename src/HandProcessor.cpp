@@ -19,24 +19,7 @@ cv::Mat ellipseKernel(int size) {
     return cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(s, s));
 }
 
-std::string base64Encode(const std::vector<uchar>& bytes) {
-    static const char* table =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string out;
-    out.reserve(((bytes.size() + 2) / 3) * 4);
-    for (std::size_t i = 0; i < bytes.size(); i += 3) {
-        const unsigned b0 = bytes[i];
-        const unsigned b1 = (i + 1 < bytes.size()) ? bytes[i + 1] : 0;
-        const unsigned b2 = (i + 2 < bytes.size()) ? bytes[i + 2] : 0;
-        out += table[(b0 >> 2) & 0x3F];
-        out += table[((b0 & 0x03) << 4) | ((b1 >> 4) & 0x0F)];
-        out += (i + 1 < bytes.size()) ? table[((b1 & 0x0F) << 2) | ((b2 >> 6) & 0x03)] : '=';
-        out += (i + 2 < bytes.size()) ? table[b2 & 0x3F] : '=';
-    }
-    return out;
 }
-
-}  // namespace
 
 void HandProcessor::createCalibrationWindow() {
     if (calibrationWindowCreated_) {
@@ -219,8 +202,7 @@ SceneMetrics HandProcessor::computeSceneMetrics(const cv::Mat& bgrFrame,
 
     cv::meanStdDev(hsv(expanded), metrics.bgHsvMean, metrics.bgHsvStd, bgMask);
 
-    cv::Scalar frameMean;
-    cv::meanStdDev(hsv, frameMean, cv::noArray());
+    const cv::Scalar frameMean = cv::mean(hsv);
     metrics.ambientBrightness = frameMean[2];
 
     const double palmV = metrics.palmHsvMean[2];
@@ -230,16 +212,9 @@ SceneMetrics HandProcessor::computeSceneMetrics(const cv::Mat& bgrFrame,
     if (!mask.empty()) {
         metrics.maskCoverage =
             static_cast<double>(cv::countNonZero(mask)) / static_cast<double>(mask.total());
-        const int labels = cv::connectedComponents(mask, cv::noArray(), 8, CV_32S);
-        metrics.maskComponents = std::max(0, labels - 1);
-    }
-
-    cv::Mat snapshot;
-    cv::resize(bgrFrame(roi), snapshot, cv::Size(96, 96));
-    std::vector<uchar> jpeg;
-    std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 70};
-    if (cv::imencode(".jpg", snapshot, jpeg, params)) {
-        metrics.roiSnapshotBase64 = base64Encode(jpeg);
+        cv::Mat labels;
+        const int labelCount = cv::connectedComponents(mask, labels, 8, CV_32S);
+        metrics.maskComponents = std::max(0, labelCount - 1);
     }
 
     metrics.valid = true;

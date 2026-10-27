@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <utility>
 
 using json = nlohmann::json;
 
@@ -63,6 +64,43 @@ std::string wordsToSentence(const std::vector<std::string>& words) {
     return sentence;
 }
 
+void sanitizeTuning(AiTuningResult& r) {
+    if (r.hMin > r.hMax) {
+        std::swap(r.hMin, r.hMax);
+    }
+    if (r.sMin > r.sMax) {
+        std::swap(r.sMin, r.sMax);
+    }
+    if (r.vMin > r.vMax) {
+        std::swap(r.vMin, r.vMax);
+    }
+    r.hMin = std::clamp(r.hMin, 0, 179);
+    r.hMax = std::clamp(r.hMax, 0, 179);
+    r.sMin = std::clamp(r.sMin, 0, 255);
+    r.sMax = std::clamp(r.sMax, 0, 255);
+    r.vMin = std::clamp(r.vMin, 0, 255);
+    r.vMax = std::clamp(r.vMax, 0, 255);
+    if (r.hMin == r.hMax) {
+        r.hMax = std::min(179, r.hMin + 1);
+    }
+    if (r.sMin == r.sMax) {
+        r.sMax = std::min(255, r.sMin + 1);
+    }
+    if (r.vMin == r.vMax) {
+        r.vMax = std::min(255, r.vMin + 1);
+    }
+    r.morphKernelSize = std::clamp(r.morphKernelSize, 1, 15);
+    if ((r.morphKernelSize % 2) == 0) {
+        r.morphKernelSize = std::min(15, r.morphKernelSize + 1);
+    }
+    r.blurSigma = std::clamp(r.blurSigma, 0, 5);
+    r.defectAngleLimitDeg = std::clamp(r.defectAngleLimitDeg, 45.0, 140.0);
+    r.defectDepthThresh = std::clamp(r.defectDepthThresh, 0.02, 0.5);
+    if (r.lightingStatus.size() > 60) {
+        r.lightingStatus = r.lightingStatus.substr(0, 60);
+    }
+}
+
 }  // namespace
 
 NvidiaAIClient::NvidiaAIClient() = default;
@@ -105,21 +143,21 @@ std::string NvidiaAIClient::refineStatus() const {
 
 bool NvidiaAIClient::pollTuning(AiTuningResult& out) {
     std::lock_guard<std::mutex> lock(mtx_);
-    if (!tuningReady_) {
+    if (!aiUpdatePending_) {
         return false;
     }
-    out = tuningResult_;
-    tuningReady_ = false;
+    out = pendingTuning_;
+    aiUpdatePending_ = false;
     return true;
 }
 
 bool NvidiaAIClient::pollRefined(std::string& out) {
     std::lock_guard<std::mutex> lock(mtx_);
-    if (!refinedReady_) {
+    if (!refinePending_) {
         return false;
     }
-    out = refinedSentence_;
-    refinedReady_ = false;
+    out = pendingSentence_;
+    refinePending_ = false;
     return true;
 }
 
@@ -131,7 +169,7 @@ void NvidiaAIClient::requestTuningAsync(const SceneMetrics& metrics, const HsvBo
     }
 
     tuningStatus_ = "working";
-    tuningReady_ = false;
+    aiUpdatePending_ = false;
 
     const SceneMetrics m = metrics;
     const HsvBounds cur = current;
@@ -140,6 +178,7 @@ void NvidiaAIClient::requestTuningAsync(const SceneMetrics& metrics, const HsvBo
     const bool configured = configured_;
 
     worker_ = std::thread([this, m, cur, key, model, configured]() {
+        try {
         AiTuningResult result;
         result.valid = true;
 
@@ -164,10 +203,11 @@ void NvidiaAIClient::requestTuningAsync(const SceneMetrics& metrics, const HsvBo
             } else {
                 result.lightingStatus = "Offline tune: local HSV auto-range applied";
             }
-            tuningResult_ = result;
+            sanitizeTuning(result);
             {
                 std::lock_guard<std::mutex> lock(mtx_);
-                tuningReady_ = true;
+                pendingTuning_ = result;
+                aiUpdatePending_ = true;
                 tuningStatus_ = "offline";
             }
             return;
@@ -185,8 +225,7 @@ void NvidiaAIClient::requestTuningAsync(const SceneMetrics& metrics, const HsvBo
             {"mask_components", m.maskComponents},
             {"current_hsv_bounds",
              {{"h_min", cur.hMin}, {"h_max", cur.hMax}, {"s_min", cur.sMin},
-              {"s_max", cur.sMax}, {"v_min", cur.vMin}, {"v_max", cur.vMax}}},
-            {"roi_snapshot_base64_jpeg", m.roiSnapshotBase64}};
+              {"s_max", cur.sMax}, {"v_min", cur.vMin}, {"v_max", cur.vMax}}}};
 
         json systemMsg = {
             "role", "system",
@@ -284,23 +323,25 @@ void NvidiaAIClient::requestTuningAsync(const SceneMetrics& metrics, const HsvBo
                 const std::string objText = extractJsonObject(content);
                 if (!objText.empty()) {
                     json obj = json::parse(objText);
-                    result.hMin = obj.value("h_min", 0);
-                    result.hMax = obj.value("h_max", 179);
-                    result.sMin = obj.value("s_min", 30);
-                    result.sMax = obj.value("s_max", 150);
-                    result.vMin = obj.value("v_min", 60);
-                    result.vMax = obj.value("v_max", 255);
-                    result.morphKernelSize = obj.value("morph_kernel_size", 3);
-                    result.blurSigma = static_cast<int>(obj.value("blur_sigma", 1));
+                    result.hMin = static_cast<int>(obj.value("h_min", 0.0));
+                    result.hMax = static_cast<int>(obj.value("h_max", 179.0));
+                    result.sMin = static_cast<int>(obj.value("s_min", 30.0));
+                    result.sMax = static_cast<int>(obj.value("s_max", 150.0));
+                    result.vMin = static_cast<int>(obj.value("v_min", 60.0));
+                    result.vMax = static_cast<int>(obj.value("v_max", 255.0));
+                    result.morphKernelSize =
+                        static_cast<int>(obj.value("morph_kernel_size", 3.0));
+                    result.blurSigma = static_cast<int>(obj.value("blur_sigma", 1.0));
                     result.defectAngleLimitDeg = obj.value("defect_angle_limit_deg", 90.0);
                     result.defectDepthThresh = obj.value("defect_depth_thresh", 0.10);
                     result.lightingStatus =
                         obj.value("lighting_status", std::string("AI tune applied"));
                     result.fromNetwork = true;
-                    tuningResult_ = result;
+                    sanitizeTuning(result);
                     {
                         std::lock_guard<std::mutex> lock(mtx_);
-                        tuningReady_ = true;
+                        pendingTuning_ = result;
+                        aiUpdatePending_ = true;
                         tuningStatus_ = "ok";
                     }
                     return;
@@ -311,14 +352,23 @@ void NvidiaAIClient::requestTuningAsync(const SceneMetrics& metrics, const HsvBo
             }
         }
 
-        tuningResult_ = result;
         {
             std::lock_guard<std::mutex> lock(mtx_);
             tuningStatus_ = "failed: " + error;
         }
 #else
-        tuningStatus_ = "failed: unsupported platform";
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            tuningStatus_ = "failed: unsupported platform";
+        }
 #endif
+        } catch (const std::exception& ex) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            tuningStatus_ = std::string("failed: ") + ex.what();
+        } catch (...) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            tuningStatus_ = "failed: unknown exception";
+        }
     });
 }
 
@@ -330,7 +380,7 @@ void NvidiaAIClient::requestRefineAsync(const std::vector<std::string>& words) {
     }
 
     refineStatus_ = "working";
-    refinedReady_ = false;
+    refinePending_ = false;
 
     const std::string key = apiKey_;
     const std::string model = model_;
@@ -338,11 +388,12 @@ void NvidiaAIClient::requestRefineAsync(const std::vector<std::string>& words) {
     const std::string raw = wordsToSentence(words);
 
     worker_ = std::thread([this, key, model, configured, raw]() {
+        try {
         if (!configured) {
-            refinedSentence_ = raw;
             {
                 std::lock_guard<std::mutex> lock(mtx_);
-                refinedReady_ = true;
+                pendingSentence_ = raw;
+                refinePending_ = true;
                 refineStatus_ = "offline";
             }
             return;
@@ -433,10 +484,10 @@ void NvidiaAIClient::requestRefineAsync(const std::vector<std::string>& words) {
                     response.at("choices").at(0).at("message").at("content").get<std::string>();
                 content.erase(std::remove(content.begin(), content.end(), '\n'), content.end());
                 if (!content.empty()) {
-                    refinedSentence_ = content;
                     {
                         std::lock_guard<std::mutex> lock(mtx_);
-                        refinedReady_ = true;
+                        pendingSentence_ = content;
+                        refinePending_ = true;
                         refineStatus_ = "ok";
                     }
                     return;
@@ -447,16 +498,26 @@ void NvidiaAIClient::requestRefineAsync(const std::vector<std::string>& words) {
             }
         }
 
-        refinedSentence_ = raw;
         {
             std::lock_guard<std::mutex> lock(mtx_);
-            refinedReady_ = true;
+            pendingSentence_ = raw;
+            refinePending_ = true;
             refineStatus_ = "offline: " + error;
         }
 #else
-        refinedSentence_ = raw;
-        refinedReady_ = true;
-        refineStatus_ = "offline";
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            pendingSentence_ = raw;
+            refinePending_ = true;
+            refineStatus_ = "offline";
+        }
 #endif
+        } catch (const std::exception& ex) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            refineStatus_ = std::string("failed: ") + ex.what();
+        } catch (...) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            refineStatus_ = "failed: unknown exception";
+        }
     });
 }

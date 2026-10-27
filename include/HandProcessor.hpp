@@ -34,7 +34,6 @@ struct SceneMetrics {
     double contrastRatio{0.0};
     double maskCoverage{0.0};
     int maskComponents{0};
-    std::string roiSnapshotBase64;
 };
 
 class HandProcessor {

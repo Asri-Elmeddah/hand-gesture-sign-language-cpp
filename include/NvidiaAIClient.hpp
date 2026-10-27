@@ -54,9 +54,9 @@ private:
     std::thread worker_;
     std::string tuningStatus_{"idle"};
     std::string refineStatus_{"idle"};
-    AiTuningResult tuningResult_;
-    bool tuningReady_{false};
-    std::string refinedSentence_;
-    bool refinedReady_{false};
+    AiTuningResult pendingTuning_;
+    bool aiUpdatePending_{false};
+    std::string pendingSentence_;
+    bool refinePending_{false};
     mutable std::mutex mtx_;
 };

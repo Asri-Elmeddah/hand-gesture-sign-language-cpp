@@ -339,8 +339,12 @@ int main(int argc, char* argv[]) {
         }
 
         if (mouseCtx.aiClicked.exchange(false)) {
-            SceneMetrics metrics = processor.computeSceneMetrics(frame, mask);
-            ai.requestTuningAsync(metrics, processor.hsvBounds());
+            try {
+                SceneMetrics metrics = processor.computeSceneMetrics(frame, mask);
+                ai.requestTuningAsync(metrics, processor.hsvBounds());
+            } catch (const std::exception& ex) {
+                aiDiagnosis = std::string("AI metrics failed: ") + ex.what();
+            }
         }
         if (mouseCtx.updateClicked.exchange(false)) {
 #ifdef _WIN32
@@ -350,19 +354,24 @@ int main(int argc, char* argv[]) {
 
         AiTuningResult tuning;
         if (ai.pollTuning(tuning) && tuning.valid) {
-            HsvBounds b;
-            b.hMin = tuning.hMin;
-            b.hMax = tuning.hMax;
-            b.sMin = tuning.sMin;
-            b.sMax = tuning.sMax;
-            b.vMin = tuning.vMin;
-            b.vMax = tuning.vMax;
-            processor.setHsvBounds(b);
-            processor.setMorphKernelSize(tuning.morphKernelSize);
-            processor.setBlurSigma(tuning.blurSigma);
-            processor.setDefectAngleLimitDeg(tuning.defectAngleLimitDeg);
-            processor.setDefectDepthThreshold(tuning.defectDepthThresh);
-            aiDiagnosis = (tuning.fromNetwork ? "AI Tune: " : "") + tuning.lightingStatus;
+            try {
+                HsvBounds b;
+                b.hMin = tuning.hMin;
+                b.hMax = tuning.hMax;
+                b.sMin = tuning.sMin;
+                b.sMax = tuning.sMax;
+                b.vMin = tuning.vMin;
+                b.vMax = tuning.vMax;
+                processor.setHsvBounds(b);
+                processor.setMorphKernelSize(tuning.morphKernelSize);
+                processor.setBlurSigma(tuning.blurSigma);
+                processor.setDefectAngleLimitDeg(tuning.defectAngleLimitDeg);
+                processor.setDefectDepthThreshold(tuning.defectDepthThresh);
+                aiDiagnosis = (tuning.fromNetwork ? "AI Tune: " : "") + tuning.lightingStatus;
+            } catch (const std::exception& ex) {
+                std::string message = std::string("AI apply failed: ") + ex.what();
+                aiDiagnosis = message.substr(0, std::min<std::size_t>(message.size(), 80));
+            }
         }
         std::string refined;
         if (ai.pollRefined(refined)) {
@@ -478,8 +487,12 @@ int main(int argc, char* argv[]) {
                 break;
             case 'a':
             case 'A': {
-                SceneMetrics metrics = processor.computeSceneMetrics(frame, mask);
-                ai.requestTuningAsync(metrics, processor.hsvBounds());
+                try {
+                    SceneMetrics metrics = processor.computeSceneMetrics(frame, mask);
+                    ai.requestTuningAsync(metrics, processor.hsvBounds());
+                } catch (const std::exception& ex) {
+                    aiDiagnosis = std::string("AI metrics failed: ") + ex.what();
+                }
                 break;
             }
             case 'g':
