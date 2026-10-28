@@ -373,6 +373,13 @@ int main(int argc, char* argv[]) {
                 aiDiagnosis = message.substr(0, std::min<std::size_t>(message.size(), 80));
             }
         }
+        const std::string tuningState = ai.tuningStatus();
+        if (tuningState == "working") {
+            aiDiagnosis = "AI Tune: analyzing scene...";
+        } else if (tuningState.rfind("failed", 0) == 0) {
+            std::string message = "AI Tune " + tuningState;
+            aiDiagnosis = message.substr(0, std::min<std::size_t>(message.size(), 90));
+        }
         std::string refined;
         if (ai.pollRefined(refined)) {
             refinedSentence = refined;

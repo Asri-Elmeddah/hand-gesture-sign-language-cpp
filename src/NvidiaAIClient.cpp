@@ -16,35 +16,19 @@ using json = nlohmann::json;
 
 namespace {
 
-std::string extractJsonObject(const std::string& text) {
-    const std::size_t begin = text.find('{');
-    if (begin == std::string::npos) {
+std::string extractJsonPayload(const std::string& text) {
+    std::string cleaned = text;
+    const std::size_t thinkEnd = cleaned.find("");
+    if (thinkEnd != std::string::npos) {
+        cleaned = cleaned.substr(thinkEnd + 8);
+    }
+    cleaned.erase(std::remove(cleaned.begin(), cleaned.end(), '`'), cleaned.end());
+    const std::size_t first = cleaned.find('{');
+    const std::size_t last = cleaned.rfind('}');
+    if (first == std::string::npos || last == std::string::npos || last < first) {
         return "";
     }
-    int depth = 0;
-    bool inString = false;
-    for (std::size_t i = begin; i < text.size(); ++i) {
-        const char c = text[i];
-        if (inString) {
-            if (c == '\\' && i + 1 < text.size()) {
-                ++i;
-            } else if (c == '"') {
-                inString = false;
-            }
-            continue;
-        }
-        if (c == '"') {
-            inString = true;
-        } else if (c == '{') {
-            ++depth;
-        } else if (c == '}') {
-            --depth;
-            if (depth == 0) {
-                return text.substr(begin, i - begin + 1);
-            }
-        }
-    }
-    return "";
+    return cleaned.substr(first, last - first + 1);
 }
 
 std::string wordsToSentence(const std::vector<std::string>& words) {
@@ -231,10 +215,12 @@ void NvidiaAIClient::requestTuningAsync(const SceneMetrics& metrics, const HsvBo
             "role", "system",
             "content",
             "You are a Computer Vision Calibration Expert for skin-color HSV segmentation of a "
-            "hand inside an ROI. You receive scene telemetry (palm vs background HSV mean/std, "
-            "ambient brightness 0-255, contrast ratio 0-1, binary mask coverage 0-1, connected "
-            "components count). OpenCV hue range is 0-179. Respond with ONLY a strict JSON "
-            "object, no markdown, with exactly these keys: {\"h_min\": int, \"h_max\": int, "
+            "hand inside an ROI. You receive numerical scene telemetry (palm vs background HSV "
+            "mean/std, ambient brightness 0-255, contrast ratio 0-1, binary mask coverage 0-1, "
+            "connected components count). OpenCV hue range is 0-179. CRITICAL: Return ONLY a "
+            "raw, unformatted JSON object starting with { and ending with }. DO NOT use "
+            "markdown code blocks (```). DO NOT add any conversational text. The JSON object "
+            "must have exactly these keys: {\"h_min\": int, \"h_max\": int, "
             "\"s_min\": int, \"s_max\": int, \"v_min\": int, \"v_max\": int, "
             "\"morph_kernel_size\": int, \"blur_sigma\": int, \"defect_angle_limit_deg\": float, "
             "\"defect_depth_thresh\": float, \"lighting_status\": \"string\"}. The bounds must "
@@ -317,36 +303,42 @@ void NvidiaAIClient::requestTuningAsync(const SceneMetrics& metrics, const HsvBo
 
         if (!responseText.empty()) {
             try {
-                json response = json::parse(responseText);
-                const std::string content =
-                    response.at("choices").at(0).at("message").at("content").get<std::string>();
-                const std::string objText = extractJsonObject(content);
-                if (!objText.empty()) {
-                    json obj = json::parse(objText);
-                    result.hMin = static_cast<int>(obj.value("h_min", 0.0));
-                    result.hMax = static_cast<int>(obj.value("h_max", 179.0));
-                    result.sMin = static_cast<int>(obj.value("s_min", 30.0));
-                    result.sMax = static_cast<int>(obj.value("s_max", 150.0));
-                    result.vMin = static_cast<int>(obj.value("v_min", 60.0));
-                    result.vMax = static_cast<int>(obj.value("v_max", 255.0));
-                    result.morphKernelSize =
-                        static_cast<int>(obj.value("morph_kernel_size", 3.0));
-                    result.blurSigma = static_cast<int>(obj.value("blur_sigma", 1.0));
-                    result.defectAngleLimitDeg = obj.value("defect_angle_limit_deg", 90.0);
-                    result.defectDepthThresh = obj.value("defect_depth_thresh", 0.10);
-                    result.lightingStatus =
-                        obj.value("lighting_status", std::string("AI tune applied"));
-                    result.fromNetwork = true;
-                    sanitizeTuning(result);
-                    {
-                        std::lock_guard<std::mutex> lock(mtx_);
-                        pendingTuning_ = result;
-                        aiUpdatePending_ = true;
-                        tuningStatus_ = "ok";
+                const std::string envelope = extractJsonPayload(responseText);
+                if (envelope.empty()) {
+                    error = "API response contained no JSON object";
+                } else {
+                    json response = json::parse(envelope);
+                    const std::string content =
+                        response.at("choices").at(0).at("message").at("content").get<std::string>();
+                    const std::string objText = extractJsonPayload(content);
+                    if (objText.empty()) {
+                        error = "model reply contained no JSON object";
+                    } else {
+                        json obj = json::parse(objText);
+                        result.hMin = static_cast<int>(obj.value("h_min", 0.0));
+                        result.hMax = static_cast<int>(obj.value("h_max", 179.0));
+                        result.sMin = static_cast<int>(obj.value("s_min", 30.0));
+                        result.sMax = static_cast<int>(obj.value("s_max", 150.0));
+                        result.vMin = static_cast<int>(obj.value("v_min", 60.0));
+                        result.vMax = static_cast<int>(obj.value("v_max", 255.0));
+                        result.morphKernelSize =
+                            static_cast<int>(obj.value("morph_kernel_size", 3.0));
+                        result.blurSigma = static_cast<int>(obj.value("blur_sigma", 1.0));
+                        result.defectAngleLimitDeg = obj.value("defect_angle_limit_deg", 90.0);
+                        result.defectDepthThresh = obj.value("defect_depth_thresh", 0.10);
+                        result.lightingStatus =
+                            obj.value("lighting_status", std::string("AI tune applied"));
+                        result.fromNetwork = true;
+                        sanitizeTuning(result);
+                        {
+                            std::lock_guard<std::mutex> lock(mtx_);
+                            pendingTuning_ = result;
+                            aiUpdatePending_ = true;
+                            tuningStatus_ = "ok";
+                        }
+                        return;
                     }
-                    return;
                 }
-                error = "no JSON object in model reply";
             } catch (const std::exception& ex) {
                 error = std::string("parse: ") + ex.what();
             }
