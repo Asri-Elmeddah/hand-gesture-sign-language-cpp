@@ -1,17 +1,66 @@
+# =============================================================================
+# hand-gesture-control — .gitignore
+# پروژه سی++ / أوبنencv مترجمّة على ويندوز
+# =============================================================================
+
+# --- أسرار وإعدادات محلية (لا تُرفع أبداً إلى الريپو الخاص) ---
+.env
+.env.local
+*.env
+
+# --- ملفات البناء (CMake / MSVC) ---
 build/
-.vs/
-out/
+*/build/
+CMakeFiles/
+CMakeCache.txt
+CMakePresets.json.user
+install_manifest.txt
+CTestTestfile.cmake
+*.cmake
+
+# --- مخرجات مترجم مايكروسوفت / Visual Studio ---
 *.exe
 *.dll
-*.pdb
-*.lib
-*.ilk
 *.obj
-*.user
-.env
+*.pdb
+*.idb
+*.ilk
+*.exp
+*.lib
+*.tlog
+*.lastbuildstate
+*.recipe
+*.slnx
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.opensdf
+*.sdf
+*.suo
+*.vscode/
+.vs/
+Debug/
+Release/
+x64/
+x86/
+
+# --- مخرجات التطبيق وقت التشغيل ---
 session_transcript.txt
 telemetry_log.csv
-*.tmp
+*.csv
 *.log
-__pycache__/
-.ipynb_checkpoints/
+
+# --- أنظمة التشغيل ---
+Thumbs.db
+DS_Store
+$RECYCLE.BIN/
+
+# --- أماكن مؤقتة ---
+tmp/
+temp/
+*.tmp
+
+# =============================================================================
+# ملحوظة: البيانات المرفقة مع المشروع (data/sign_language_db.json) تُرفع
+# لأنّ hypotension افتراضيةريف ، وتعديلات المستخدم تُحفظ فيها محلياً فقط.
+# =============================================================================
